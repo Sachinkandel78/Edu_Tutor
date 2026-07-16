@@ -14,7 +14,18 @@ llm = ChatGroq(
 
 chat_history = []  # this list holds the whole conversation for this session
 
-print("TutorGpt is ready. Type 'exit' to quit.\n")
+def explain_zeroshot(topic):
+    prompt = f"Explain the concept of '{topic}' in simple terms, as if teaching a student who is new to it. Keep it clear and beginner-friendly."
+    response = llm.invoke(prompt)
+    return response.content
+
+
+def summarize_zeroshot(text):
+    prompt = f"Summarize the following text in a few clear sentences, keeping only the key points:\n\n{text}"
+    response = llm.invoke(prompt)
+    return response.content
+
+print("EduTutor is ready. Commands: /explain <topic>, /summarize <text>, or just chat. Type 'exit' to quit.\n")
 
 while True:
     user_input = input("You: ")
@@ -23,9 +34,18 @@ while True:
         print("Goodbye!")
         break
 
-    chat_history.append(("human", user_input))
+    elif user_input.startswith("/explain "):
+        topic = user_input.replace("/explain ", "")
+        result = explain_zeroshot(topic)
+        print("Tutor:", result, "\n")
 
-    response = llm.invoke(chat_history)
-    print("Tutor:", response.content, "\n")
+    elif user_input.startswith("/summarize "):
+        text = user_input.replace("/summarize ", "")
+        result = summarize_zeroshot(text)
+        print("Tutor:", result, "\n")
 
-    chat_history.append(("ai", response.content))
+    else:
+        chat_history.append(("human", user_input))
+        response = llm.invoke(chat_history)
+        print("Tutor:", response.content, "\n")
+        chat_history.append(("ai", response.content))
