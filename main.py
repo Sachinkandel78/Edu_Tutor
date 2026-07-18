@@ -51,6 +51,16 @@ Number of questions: {num_questions}
     response = llm.invoke(prompt)
     return response.content
 
+
+def solve_stepwise(problem):
+    prompt = f"""Solve the following problem. Think step by step, showing your reasoning clearly before giving the final answer.
+
+Problem: {problem}
+
+Reasoning:"""
+    response = llm.invoke(prompt)
+    return response.content
+
 while True:
     user_input = input("You: ")
 
@@ -71,6 +81,11 @@ while True:
     elif user_input.startswith("/quiz "):
         topic = user_input.replace("/quiz ", "")
         result = generate_quiz_fewshot(topic)
+        print("Tutor:\n", result, "\n")
+    
+    elif user_input.startswith("/solve "):
+        problem = user_input.replace("/solve ", "")
+        result = solve_stepwise(problem)
         print("Tutor:\n", result, "\n")
 
     else:
