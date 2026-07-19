@@ -1,6 +1,7 @@
 import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
+from langchain_core.prompts import PromptTemplate
 
 load_dotenv()
 
@@ -10,6 +11,35 @@ llm = ChatGroq(
     api_key=api_key,
     model="llama-3.3-70b-versatile",
     temperature=0.7
+)
+explanation_template = PromptTemplate(
+    input_variables=["topic", "level"],
+    template="Explain the concept of '{topic}' in simple terms, suitable for a {level} student. Keep it clear and beginner-friendly."
+)
+
+quiz_template = PromptTemplate(
+    input_variables=["topic", "num_questions"],
+    template="""Generate a quiz on a given topic. Follow the exact format shown in these examples.
+
+Example 1:
+Topic: Gravity
+Q1. What is gravity?
+A1. A force that pulls objects toward each other, especially toward the center of the Earth.
+
+Now generate a quiz following the exact same format:
+Topic: {topic}
+Number of questions: {num_questions}
+"""
+)
+
+notes_template = PromptTemplate(
+    input_variables=["topic"],
+    template="Create concise revision notes on '{topic}' in bullet points, highlighting key terms in bold."
+)
+
+study_plan_template = PromptTemplate(
+    input_variables=["subject", "days", "hours_per_day"],
+    template="Create a day-by-day study plan for '{subject}' spread over {days} days, assuming {hours_per_day} hours of study per day. Be specific about what to cover each day."
 )
 
 chat_history = []  # this list holds the whole conversation for this session
@@ -35,6 +65,23 @@ def summarize_zeroshot(text):
     return response.content
 
 print("EduTutor is ready. Commands: /explain <topic>, /summarize <text>, or just chat. Type 'exit' to quit.\n")
+def explain_with_template(topic, level="beginner"):
+    prompt = explanation_template.format(topic=topic, level=level)
+    response = llm.invoke(prompt)
+    return response.content
+
+
+def generate_notes(topic):
+    prompt = notes_template.format(topic=topic)
+    response = llm.invoke(prompt)
+    return response.content
+
+
+def generate_study_plan(subject, days=3, hours_per_day=2):
+    prompt = study_plan_template.format(subject=subject, days=days, hours_per_day=hours_per_day)
+    response = llm.invoke(prompt)
+    return response.content
+
 
 def generate_quiz_fewshot(topic, num_questions=3):
     prompt = f"""Generate a quiz on a given topic. Follow the exact format shown in these examples.
@@ -104,6 +151,15 @@ while True:
             print(f"Role switched to: {current_role}\n")
         else:
             print(f"Unknown role. Available roles: {', '.join(roles.keys())}\n")
+    elif user_input.startswith("/notes "):
+        topic = user_input.replace("/notes ", "")
+        result = generate_notes(topic)
+        print("Tutor:\n", result, "\n")
+
+    elif user_input.startswith("/plan "):
+        subject = user_input.replace("/plan ", "")
+        result = generate_study_plan(subject)
+        print("Tutor:\n", result, "\n")
 
     else:
         messages = [("system", roles[current_role])] + chat_history + [("human", user_input)]
