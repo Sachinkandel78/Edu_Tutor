@@ -14,6 +14,15 @@ llm = ChatGroq(
 
 chat_history = []  # this list holds the whole conversation for this session
 
+roles = {
+    "teacher": "You are a patient and encouraging Teacher. Explain concepts simply, using relatable analogies, and check the student's understanding before moving on.",
+    "examiner": "You are a formal Examiner. Ask questions, evaluate the student's answers critically, and give concise feedback with a score out of 10. Do not give away answers easily.",
+    "coach": "You are an encouraging Study Coach. Focus on motivation, time management, and practical study strategies rather than deep subject explanations.",
+    "expert": "You are a precise Subject Expert. Give detailed, technically accurate answers, using correct terminology, suitable for an advanced student."
+}
+
+current_role = "teacher"  # default role when the app starts
+
 def explain_zeroshot(topic):
     prompt = f"Explain the concept of '{topic}' in simple terms, as if teaching a student who is new to it. Keep it clear and beginner-friendly."
     response = llm.invoke(prompt)
@@ -88,9 +97,19 @@ while True:
         result = solve_stepwise(problem)
         print("Tutor:\n", result, "\n")
 
+    elif user_input.startswith("/role "):
+        new_role = user_input.replace("/role ", "").strip().lower()
+        if new_role in roles:
+            current_role = new_role
+            print(f"Role switched to: {current_role}\n")
+        else:
+            print(f"Unknown role. Available roles: {', '.join(roles.keys())}\n")
+
     else:
+        messages = [("system", roles[current_role])] + chat_history + [("human", user_input)]
+        response = llm.invoke(messages)
+        print(f"Tutor ({current_role}):", response.content, "\n")
         chat_history.append(("human", user_input))
-        response = llm.invoke(chat_history)
-        print("Tutor:", response.content, "\n")
         chat_history.append(("ai", response.content))
 
+ 
