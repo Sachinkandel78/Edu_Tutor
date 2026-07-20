@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
+from langchain_core.output_parsers import StrOutputParser
 
 load_dotenv()
 
@@ -37,10 +38,17 @@ notes_template = PromptTemplate(
     template="Create concise revision notes on '{topic}' in bullet points, highlighting key terms in bold."
 )
 
+parser = StrOutputParser()
+
+explanation_chain = explanation_template | llm | parser
+notes_chain = notes_template | llm | parser
+quiz_chain = quiz_template | llm | parser
+
 study_plan_template = PromptTemplate(
     input_variables=["subject", "days", "hours_per_day"],
     template="Create a day-by-day study plan for '{subject}' spread over {days} days, assuming {hours_per_day} hours of study per day. Be specific about what to cover each day."
 )
+
 
 chat_history = []  # this list holds the whole conversation for this session
 
@@ -117,6 +125,21 @@ Reasoning:"""
     response = llm.invoke(prompt)
     return response.content
 
+def full_learning_chain(topic):
+    explanation = explanation_chain.invoke({"topic": topic, "level": "beginner"})
+    notes = notes_chain.invoke({"topic": topic})
+    quiz = quiz_chain.invoke({"topic": topic, "num_questions": 3})
+
+    return f"""--- Explanation ---
+{explanation}
+
+--- Revision Notes ---
+{notes}
+
+--- Quiz ---
+{quiz}
+"""
+
 while True:
     user_input = input("You: ")
 
@@ -159,6 +182,11 @@ while True:
     elif user_input.startswith("/plan "):
         subject = user_input.replace("/plan ", "")
         result = generate_study_plan(subject)
+        print("Tutor:\n", result, "\n")
+    
+    elif user_input.startswith("/learn "):
+        topic = user_input.replace("/learn ", "")
+        result = full_learning_chain(topic)
         print("Tutor:\n", result, "\n")
 
     else:
