@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 from langchain_groq import ChatGroq
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
+import json
+from datetime import date
 
 load_dotenv()
 
@@ -13,6 +15,7 @@ llm = ChatGroq(
     model="llama-3.3-70b-versatile",
     temperature=0.7
 )
+PROFILE_FILE = "user_profile.json"
 explanation_template = PromptTemplate(
     input_variables=["topic", "level"],
     template="Explain the concept of '{topic}' in simple terms, suitable for a {level} student. Keep it clear and beginner-friendly."
@@ -140,6 +143,34 @@ def full_learning_chain(topic):
 {quiz}
 """
 
+def load_profile():
+    if os.path.exists(PROFILE_FILE):
+        with open(PROFILE_FILE, "r") as f:
+            return json.load(f)
+    else:
+        return {
+            "name": None,
+            "topics_studied": [],
+            "preferred_role": "teacher",
+            "quiz_history": []
+        }
+def save_profile(profile):
+    with open(PROFILE_FILE, "w") as f:
+        json.dump(profile, f, indent=2)
+
+
+profile = load_profile()
+current_role = profile.get("preferred_role", "teacher")
+
+if profile["name"]:
+    print(f"Welcome back, {profile['name']}!")
+    if profile["topics_studied"]:
+        last_topic = profile["topics_studied"][-1]["topic"]
+        print(f"Last time, we studied: {last_topic}\n")
+else:
+    profile["name"] = input("What's your name? ")
+    save_profile(profile)
+            
 while True:
     user_input = input("You: ")
 
@@ -151,6 +182,9 @@ while True:
         topic = user_input.replace("/explain ", "")
         result = explain_zeroshot(topic)
         print("Tutor:", result, "\n")
+
+        profile["topics_studied"].append({"topic": topic, "date": str(date.today())})
+        save_profile(profile)
 
     elif user_input.startswith("/summarize "):
         text = user_input.replace("/summarize ", "")
@@ -171,9 +205,13 @@ while True:
         new_role = user_input.replace("/role ", "").strip().lower()
         if new_role in roles:
             current_role = new_role
+            profile["preferred_role"] = current_role
+            save_profile(profile)
             print(f"Role switched to: {current_role}\n")
         else:
             print(f"Unknown role. Available roles: {', '.join(roles.keys())}\n")
+
+            
     elif user_input.startswith("/notes "):
         topic = user_input.replace("/notes ", "")
         result = generate_notes(topic)
@@ -188,6 +226,9 @@ while True:
         topic = user_input.replace("/learn ", "")
         result = full_learning_chain(topic)
         print("Tutor:\n", result, "\n")
+
+        profile["topics_studied"].append({"topic": topic, "date": str(date.today())})
+        save_profile(profile)
 
     else:
         messages = [("system", roles[current_role])] + chat_history + [("human", user_input)]
